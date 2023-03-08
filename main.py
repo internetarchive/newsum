@@ -28,7 +28,7 @@ CHANNELS = {
   "ESPRESO": "Espreso TV",
   "RUSSIA1": "Russia-1",
   "RUSSIA24": "Russia-24",
-  "1TV": "1TV",
+  "1TV": "Channel One Russia",
   "NTV": "NTV",
   "BELARUSTV": "Belarus TV",
   "IRINN": "Islamic Republic of Iran News Network"
