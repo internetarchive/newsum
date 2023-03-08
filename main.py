@@ -10,8 +10,8 @@ import pandas as pd
 import streamlit as st
 
 from datetime import datetime, timedelta
-from gpt_index import GPTSimpleVectorIndex, GPTListIndex, Document, LLMPredictor
 from langchain.llms import OpenAI
+from llama_index import GPTSimpleVectorIndex, GPTListIndex, Document, LLMPredictor
 from requests.exceptions import HTTPError
 from wordcloud import WordCloud
 

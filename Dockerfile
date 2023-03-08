@@ -7,7 +7,7 @@ WORKDIR     /app
 ENTRYPOINT  ["streamlit", "run"]
 CMD         ["main.py"]
 
-RUN         pip install streamlit gpt-index
+RUN         pip install streamlit llama-index
 
 RUN         cd /tmp \
               && git clone https://github.com/amueller/word_cloud.git \
