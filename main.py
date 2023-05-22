@@ -83,14 +83,24 @@ def get_headlines(_idx, ch, dt, lg):
   return _idx.query("Top 10 news headlines with summary in these articles in Markdown format")
 
 
+qp = st.experimental_get_query_params()
+if "date" not in st.session_state and qp.get("date"):
+    st.session_state["date"] = datetime.strptime(qp.get("date")[0], "%Y-%m-%d").date()
+if "chan" not in st.session_state and qp.get("chan"):
+    st.session_state["chan"] = qp.get("chan")[0]
+if "lang" not in st.session_state and qp.get("lang"):
+    st.session_state["lang"] = qp.get("lang")[0]
+
 cols = st.columns(3)
-dt = cols[0].date_input("Date", value=ENDDT, min_value=BGNDT, max_value=ENDDT, key="dt").strftime("%Y%m%d")
-ch = cols[1].selectbox("Channel", CHANNELS, format_func=lambda x: CHANNELS.get(x, ""), key="ch")
-lg = cols[2].selectbox("Language", ["English (Translation)", "Original"], key="lg", disabled=True) # Disabled due to a bug https://github.com/jerryjliu/gpt_index/issues/294
+dt = cols[0].date_input("Date", value=ENDDT, min_value=BGNDT, max_value=ENDDT, key="date").strftime("%Y%m%d")
+ch = cols[1].selectbox("Channel", CHANNELS, format_func=lambda x: CHANNELS.get(x, ""), key="chan")
+lg = cols[2].selectbox("Language", ["English", "Original"], format_func=lambda x: "English (Translation)" if x == "English" else x, key="lang", disabled=True) # Disabled due to a bug https://github.com/jerryjliu/gpt_index/issues/294
 
 if not ch:
   st.info(f"Select a channel to summarize for the selected day.")
   st.stop()
+
+st.experimental_set_query_params(**st.session_state)
 
 try:
   idx = load_index(ch, dt, lg)
