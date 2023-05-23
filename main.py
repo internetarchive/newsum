@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import logging
 import re
 import requests
 
@@ -11,17 +12,20 @@ import streamlit as st
 
 from datetime import datetime, timedelta
 from langchain.llms import OpenAI
-from llama_index import GPTSimpleVectorIndex, GPTListIndex, Document, LLMPredictor
+from llama_index import GPTVectorStoreIndex, Document, LLMPredictor, ServiceContext
 from requests.exceptions import HTTPError
 from wordcloud import WordCloud
 
+
+logger = logging.getLogger("llama_index")
+logger.setLevel(logging.WARNING)
 
 TITLE = "Daily News Summary"
 ICON = "https://archive.org/favicon.ico"
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 
-BGNDT = pd.to_datetime("2022-03-25")
-ENDDT = datetime.now() - timedelta(hours=30)
+BGNDT = pd.to_datetime("2022-03-25").date()
+ENDDT = (datetime.now() - timedelta(hours=30)).date()
 
 CHANNELS = {
   "": "-- Select --",
@@ -53,7 +57,7 @@ def load_index(ch, dt, lg):
   r = requests.get(f"{VISEXP}/{ch}.{dt}.inventory.json")
   r.raise_for_status()
   shows = r.json()["shows"]
-  idx = GPTSimpleVectorIndex([], llm_predictor=llm_predictor)
+  idx = GPTVectorStoreIndex.from_documents([], service_context=ServiceContext.from_defaults(llm_predictor=llm_predictor))
   msg = f"Loading `{dt[:4]}-{dt[4:6]}-{dt[6:8]}` {lg} transcripts for `{CHANNELS.get(ch, 'selected')}` channel..."
   prog = st.progress(0.0, text=msg)
   for i, tr in enumerate(shows, start=1):
@@ -63,7 +67,7 @@ def load_index(ch, dt, lg):
       pass
     prog.progress(i/len(shows), text=msg)
   prog.empty()
-  return idx
+  return idx.as_query_engine()
 
 
 @st.cache_resource(show_spinner="Extracting top entities...")
