@@ -7,6 +7,13 @@ WORKDIR     /app
 ENTRYPOINT  ["streamlit", "run"]
 CMD         ["main.py"]
 
-RUN         pip install streamlit llama-index wordcloud
+RUN         pip install \
+              langchain \
+              llama-index \
+              openai \
+              scikit-learn \
+              srt \
+              streamlit \
+              wordcloud
 
 COPY        . ./

@@ -38,7 +38,7 @@ CHANNELS = {
   "IRINN": "Islamic Republic of Iran News Network"
 }
 
-st.set_page_config(page_title=TITLE, page_icon=ICON, layout="centered")
+st.set_page_config(page_title=TITLE, page_icon=ICON, layout="centered", initial_sidebar_state="collapsed")
 st.title(TITLE)
 
 llm_predictor = LLMPredictor(llm=OpenAI(max_tokens=1024, model_name="text-davinci-003"))
