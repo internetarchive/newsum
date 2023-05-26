@@ -31,6 +31,8 @@ VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visu
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
 MODEL = "text-embedding-ada-002"
 
+IDDTRE = re.compile(r"^.+_(\d{8}_\d{6})")
+
 BGNDT = pd.to_datetime("2022-03-25").date()
 ENDDT = (datetime.now() - timedelta(hours=30)).date()
 
@@ -130,7 +132,7 @@ def select_docs(dt, ch, lg, lm, ck, ct):
 
 
 def id_to_time(id, start=0):
-  _, _, dt = id.partition("_")
+  dt = IDDTRE.match(id).groups()[0]
   return datetime.strptime(dt, "%Y%m%d_%H%M%S") + timedelta(seconds=start)
 
 
@@ -173,7 +175,7 @@ with st.expander("Configurations"):
   ck = st.slider("Chunk size (sec)", value=30, min_value=3, max_value=120, step=3, key="chunk")
   ct = st.slider("Cluster count", value=20, min_value=1, max_value=50, key="count")
 
-cols = st.columns(3)
+cols = st.columns([1, 2, 1])
 dt = cols[0].date_input("Date", value=ENDDT, min_value=BGNDT, max_value=ENDDT, key="date").strftime("%Y%m%d")
 ch = cols[1].selectbox("Channel", CHANNELS, format_func=lambda x: CHANNELS.get(x, ""), key="chan")
 lg = cols[2].selectbox("Language", ["English", "Original"], key="lang")
