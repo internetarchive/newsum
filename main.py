@@ -25,7 +25,7 @@ from sklearn.cluster import KMeans
 from wordcloud import WordCloud
 
 
-TITLE = "Clustered Daily News Summary"
+TITLE = "NewSum: Daily TV News Summary"
 ICON = "https://archive.org/favicon.ico"
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
