@@ -137,7 +137,7 @@ def id_to_time(id, start=0):
 
 
 @st.cache_resource(show_spinner="Summarizing...")
-def get_summary(txt):
+def get_summary(txt, lm):
   msg = f"""
   ```{txt}```
 
@@ -203,7 +203,7 @@ seldocs = select_docs(dt, ch, lg, lm, ck, ct)
 
 for d in seldocs:
   try:
-    smr = get_summary(d.page_content)
+    smr = get_summary(d.page_content, lm)
     md = d.metadata
     st.subheader(smr.get("title", "[EMPTY]"))
     cols = st.columns([1, 2])
