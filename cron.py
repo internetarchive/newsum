@@ -26,7 +26,7 @@ TITLE = "NewSum: Daily TV News Summary"
 ICON = "https://archive.org/favicon.ico"
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
-MODEL = "text-embedding-ada-002"
+MODEL = "gpt-4"
 
 IDDTRE = re.compile(r"^.+_(\d{8}_\d{6})")
 
@@ -53,6 +53,7 @@ def load_srt(id, lg):
 
 
 def load_inventory(ch, dt, lg):
+  print("requesting inventory...")
   r = requests.get(f"{VISEXP}/{ch}.{dt}.inventory.json")
   r.raise_for_status()
   return pd.json_normalize(r.json(), record_path="shows").sort_values("start_time", ignore_index=True)
@@ -93,12 +94,12 @@ def load_chunks(inventory, lg, ck):
     except HTTPError as _:
       continue
     chks += chunk_srt(sr, r.id, lim=ck)
+    break;
   return chks
 
 
 def load_vectors(docs):
   embed = OpenAIEmbeddings()
-  msg = f"Loading vectors..."
   vectors = []
   for i, d in enumerate(docs, start=1):
     vectors.append(embed.embed_query(d.page_content))
@@ -140,9 +141,11 @@ def get_summary(txt, lm):
 lm = "OpenAI" # language model
 ck = 30 # chunk size
 ct = 20 # cluster count
-dt = ENDDT # date
-ch = "ESPRESO" # channel
+dt = ENDDT.strftime("%Y%m%d") # date
+ch = "BELARUSTV" # channel
 lg = "English" # language
+
+print("running...")
 
 
 if lm == "Vicuna":
@@ -150,6 +153,7 @@ if lm == "Vicuna":
   openai.api_base = VICUNA
 
 try:
+  print("loading inventory...")
   inventory = load_inventory(ch, dt, lg)
 except HTTPError as _:
   print(f"Inventory for `{CHANNELS.get(ch, 'selected')}` channel is not available for `{dt[:4]}-{dt[4:6]}-{dt[6:8]}` yet, try selecting another date!", icon="⚠️")
@@ -157,11 +161,12 @@ except HTTPError as _:
 seldocs = select_docs(dt, ch, lg, lm, ck, ct)
 
 with open('VICUNA-2023-07-06-OpenAI-English.json', 'w+') as file:
-  for d in seldocs:
+  print("opening json file...")
+  for d in seldocs[:1]:
     try:
       smr = get_summary(d.page_content, lm)
-      md = d.metadata
-      print(smr)
+      smr["metadata"] = d.metadata
+      file.write(json.dumps(smr, indent=2))
       # with cols[0]:
       #   components.iframe(f'https://archive.org/embed/{md["id"]}?start={md["start"]}&end={md["end"]}')
       # with cols[1]:
