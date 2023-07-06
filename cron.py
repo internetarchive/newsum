@@ -4,6 +4,7 @@ import json
 import re
 import requests
 import os
+from multiprocessing.pool import ThreadPool
 
 import openai
 import srt
@@ -31,13 +32,13 @@ OUTPUT_FOLDER_NAME = "summaries"
 IDDTRE = re.compile(r"^.+_(\d{8}_\d{6})")
 
 CHANNELS = [
-  # "ESPRESO",
-  # "RUSSIA1",
-  # "RUSSIA24",
+  "ESPRESO",
+  "RUSSIA1",
+  "RUSSIA24",
   "1TV",
-  # "NTV",
-  # "BELARUSTV",
-  # "IRINN",
+  "NTV",
+  "BELARUSTV",
+  "IRINN",
 ]
 
 LM = "OpenAI" # language model
@@ -100,17 +101,23 @@ def load_chunks(inventory, lg, ck):
   return chks
 
 
-def load_vectors(docs):
+def load_vector(i, d):
+  print(f"in load_vector {i}")
   embed = OpenAIEmbeddings()
-  vectors = []
-  for i, d in enumerate(docs, start=1):
-    vectors.append(embed.embed_query(d.page_content))
-  return vectors
-
+  result = embed.embed_query(d.page_content)
+  print(f"value returned {i}")
+  return result
 
 def select_docs(dt, ch, lg, lm, ck, ct):
+  print("load chunks...")
   docs = load_chunks(inventory, lg, ck)
-  vectors = load_vectors(docs)
+  docs_list = list(enumerate(docs, start=1))
+
+  print("load vectors...")
+  vectors = []
+  with ThreadPool(25) as pool:
+    vectors = pool.starmap(load_vector, docs_list)
+
   print("number of vectors =", len(vectors))
   kmeans = KMeans(n_clusters=ct, random_state=10, n_init=10).fit(vectors)
   cent = sorted([np.argmin(np.linalg.norm(vectors - c, axis=1)) for c in kmeans.cluster_centers_])
@@ -163,10 +170,11 @@ for ch in CHANNELS:
   seldocs = select_docs(DT, ch, LG, LM, CK, CT)
 
   with open(f"{OUTPUT_FOLDER_NAME}/{ch}-{DT[:4]}-{DT[4:6]}-{DT[6:8]}-{LM}-{LG}.json", 'w+') as file:
-    print("summarizing each document...")
+    print("begin summarizing each document...")
     if DEV_ENV: seldocs = seldocs[:1]
     for d in seldocs:
       try:
+        print("summarizing...")
         smr = get_summary(d.page_content, LM)
         smr["metadata"] = d.metadata
         print("writing results...")
