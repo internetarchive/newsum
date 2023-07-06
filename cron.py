@@ -1,25 +1,24 @@
 #!/usr/bin/env python3
 
 import json
-import logging
 import re
 import requests
+import os
 
 import openai
 import srt
 
-import altair as alt
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
 from datetime import datetime, timedelta
 
 from langchain.embeddings import OpenAIEmbeddings
-from langchain.llms import OpenAI
 from langchain.schema import Document
 from requests.exceptions import HTTPError
 from sklearn.cluster import KMeans
+
+DEV_ENV = False
 
 
 TITLE = "NewSum: Daily TV News Summary"
@@ -27,22 +26,26 @@ ICON = "https://archive.org/favicon.ico"
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
 MODEL = "gpt-4"
+OUTPUT_FOLDER_NAME = "summaries"
 
 IDDTRE = re.compile(r"^.+_(\d{8}_\d{6})")
 
-BGNDT = pd.to_datetime("2022-03-25").date()
-ENDDT = (datetime.now() - timedelta(hours=30)).date()
+CHANNELS = [
+  # "ESPRESO",
+  # "RUSSIA1",
+  # "RUSSIA24",
+  "1TV",
+  # "NTV",
+  # "BELARUSTV",
+  # "IRINN",
+]
 
-CHANNELS = {
-  "": "-- Select --",
-  "ESPRESO": "Espreso TV",
-  "RUSSIA1": "Russia-1",
-  "RUSSIA24": "Russia-24",
-  "1TV": "Channel One Russia",
-  "NTV": "NTV",
-  "BELARUSTV": "Belarus TV",
-  "IRINN": "Islamic Republic of Iran News Network"
-}
+LM = "OpenAI" # language model
+CK = 30 # chunk size
+CT = 20 # cluster count
+DT = (datetime.now() - timedelta(hours=30)).date().strftime("%Y%m%d") # date
+CH = "BELARUSTV" # channel
+LG = "English" # language
 
 
 def load_srt(id, lg):
@@ -53,7 +56,6 @@ def load_srt(id, lg):
 
 
 def load_inventory(ch, dt, lg):
-  print("requesting inventory...")
   r = requests.get(f"{VISEXP}/{ch}.{dt}.inventory.json")
   r.raise_for_status()
   return pd.json_normalize(r.json(), record_path="shows").sort_values("start_time", ignore_index=True)
@@ -94,7 +96,7 @@ def load_chunks(inventory, lg, ck):
     except HTTPError as _:
       continue
     chks += chunk_srt(sr, r.id, lim=ck)
-    break;
+    if DEV_ENV: break;
   return chks
 
 
@@ -109,7 +111,8 @@ def load_vectors(docs):
 def select_docs(dt, ch, lg, lm, ck, ct):
   docs = load_chunks(inventory, lg, ck)
   vectors = load_vectors(docs)
-  kmeans = KMeans(n_clusters=ct, random_state=10).fit(vectors)
+  print("number of vectors =", len(vectors))
+  kmeans = KMeans(n_clusters=ct, random_state=10, n_init=10).fit(vectors)
   cent = sorted([np.argmin(np.linalg.norm(vectors - c, axis=1)) for c in kmeans.cluster_centers_])
   return [docs[i] for i in cent]
 
@@ -138,40 +141,36 @@ def get_summary(txt, lm):
   return json.loads(res.choices[0].message.content.strip())
 
 
-lm = "OpenAI" # language model
-ck = 30 # chunk size
-ct = 20 # cluster count
-dt = ENDDT.strftime("%Y%m%d") # date
-ch = "BELARUSTV" # channel
-lg = "English" # language
-
-print("running...")
-
-
-if lm == "Vicuna":
+if LM == "Vicuna":
   openai.api_key = "EMPTY"
   openai.api_base = VICUNA
 
+# attempt to create ./summaries
 try:
-  print("loading inventory...")
-  inventory = load_inventory(ch, dt, lg)
-except HTTPError as _:
-  print(f"Inventory for `{CHANNELS.get(ch, 'selected')}` channel is not available for `{dt[:4]}-{dt[4:6]}-{dt[6:8]}` yet, try selecting another date!", icon="⚠️")
+    os.mkdir(f"./{OUTPUT_FOLDER_NAME}")
+except FileExistsError:
+        pass
 
-seldocs = select_docs(dt, ch, lg, lm, ck, ct)
+for ch in CHANNELS:
+  print(f"---\nstarting {ch}...")
+  try:
+    print("loading inventory...")
+    inventory = load_inventory(ch, DT, LG)
+  except HTTPError as _:
+    print(f"Inventory for `{ch}` channel is not available for `{DT[:4]}-{DT[4:6]}-{DT[6:8]}` yet, try selecting another date!", icon="⚠️")
 
-with open('VICUNA-2023-07-06-OpenAI-English.json', 'w+') as file:
-  print("opening json file...")
-  for d in seldocs[:1]:
-    try:
-      smr = get_summary(d.page_content, lm)
-      smr["metadata"] = d.metadata
-      file.write(json.dumps(smr, indent=2))
-      # with cols[0]:
-      #   components.iframe(f'https://archive.org/embed/{md["id"]}?start={md["start"]}&end={md["end"]}')
-      # with cols[1]:
-      #   st.write(smr.get("description", "[EMPTY]"))
-      # with st.expander(f'[{id_to_time(md["id"], md["start"])}] `{smr.get("category", "[EMPTY]").upper()}`'):
-      #   st.caption(d.page_content)
-    except json.JSONDecodeError as _:
-      pass
+  print("loading documents...")
+  seldocs = select_docs(DT, ch, LG, LM, CK, CT)
+
+  with open(f"{OUTPUT_FOLDER_NAME}/{ch}-{DT[:4]}-{DT[4:6]}-{DT[6:8]}-{LM}-{LG}.json", 'w+') as file:
+    print("summarizing each document...")
+    if DEV_ENV: seldocs = seldocs[:1]
+    for d in seldocs:
+      try:
+        smr = get_summary(d.page_content, LM)
+        smr["metadata"] = d.metadata
+        print("writing results...")
+        file.write(json.dumps(smr, indent=2))
+      except json.JSONDecodeError as _:
+        pass
+  print(f"finished {ch}")
