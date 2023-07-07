@@ -21,7 +21,6 @@ from sklearn.cluster import KMeans
 
 DEV_ENV = False
 
-
 TITLE = "NewSum: Daily TV News Summary"
 ICON = "https://archive.org/favicon.ico"
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
@@ -45,7 +44,6 @@ LM = "OpenAI" # language model
 CK = 30 # chunk size
 CT = 20 # cluster count
 DT = (datetime.now() - timedelta(hours=30)).date().strftime("%Y%m%d") # date
-CH = "BELARUSTV" # channel
 LG = "English" # language
 
 
@@ -102,20 +100,17 @@ def load_chunks(inventory, lg, ck):
 
 
 def load_vector(i, d):
-  print(f"in load_vector {i}")
   embed = OpenAIEmbeddings()
   result = embed.embed_query(d.page_content)
-  print(f"value returned {i}")
   return result
 
 def select_docs(dt, ch, lg, lm, ck, ct):
-  print("load chunks...")
+  print("loading chunks...")
   docs = load_chunks(inventory, lg, ck)
   docs_list = list(enumerate(docs, start=1))
 
-  print("load vectors...")
-  vectors = []
-  with ThreadPool(25) as pool:
+  print("loading vectors...")
+  with ThreadPool(50) as pool:
     vectors = pool.starmap(load_vector, docs_list)
 
   print("number of vectors =", len(vectors))
@@ -129,7 +124,7 @@ def id_to_time(id, start=0):
   return datetime.strptime(dt, "%Y%m%d_%H%M%S") + timedelta(seconds=start)
 
 
-def get_summary(txt, lm):
+def get_summary(txt, metadata):
   msg = f"""
   ```{txt}```
 
@@ -145,18 +140,20 @@ def get_summary(txt, lm):
     model=MODEL,
     messages=[{"role": "user", "content": msg}]
   )
-  return json.loads(res.choices[0].message.content.strip())
+  result = json.loads(res.choices[0].message.content.strip())
+  result["metadata"] = metadata
+  return result
 
 
 if LM == "Vicuna":
   openai.api_key = "EMPTY"
   openai.api_base = VICUNA
 
-# attempt to create ./summaries
+# attempt to create ./OUTPUT_FOLDER_NAME
 try:
-    os.mkdir(f"./{OUTPUT_FOLDER_NAME}")
+  os.mkdir(f"./{OUTPUT_FOLDER_NAME}")
 except FileExistsError:
-        pass
+  pass
 
 for ch in CHANNELS:
   print(f"---\nstarting {ch}...")
@@ -169,16 +166,15 @@ for ch in CHANNELS:
   print("loading documents...")
   seldocs = select_docs(DT, ch, LG, LM, CK, CT)
 
+  print("begin summarizing each document...")
+  if DEV_ENV: seldocs = seldocs[:1]
+
+  summary_args = [(d.page_content, d.metadata) for d in seldocs]
+  with ThreadPool(CT) as pool:
+    summaries = pool.starmap(get_summary, summary_args)
+
+  print("writing results...")
+  json_output = [s for s in summaries]
   with open(f"{OUTPUT_FOLDER_NAME}/{ch}-{DT[:4]}-{DT[4:6]}-{DT[6:8]}-{LM}-{LG}.json", 'w+') as file:
-    print("begin summarizing each document...")
-    if DEV_ENV: seldocs = seldocs[:1]
-    for d in seldocs:
-      try:
-        print("summarizing...")
-        smr = get_summary(d.page_content, LM)
-        smr["metadata"] = d.metadata
-        print("writing results...")
-        file.write(json.dumps(smr, indent=2))
-      except json.JSONDecodeError as _:
-        pass
+    file.write(json.dumps(json_output, indent=2))
   print(f"finished {ch}")
