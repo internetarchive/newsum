@@ -21,8 +21,6 @@ from sklearn.cluster import KMeans
 
 DEV_ENV = False
 
-TITLE = "NewSum: Daily TV News Summary"
-ICON = "https://archive.org/favicon.ico"
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
 MODEL = "gpt-4"
@@ -46,6 +44,7 @@ CT = 20 # cluster count
 DT = (datetime.now() - timedelta(hours=30)).date().strftime("%Y%m%d") # date
 LG = "English" # language
 
+THREAD_COUNT = 25
 
 def load_srt(id, lg):
   lang = "" if lg == "Original" else ".en"
@@ -110,7 +109,7 @@ def select_docs(dt, ch, lg, lm, ck, ct):
   docs_list = list(enumerate(docs, start=1))
 
   print("loading vectors...")
-  with ThreadPool(50) as pool:
+  with ThreadPool(THREAD_COUNT) as pool:
     vectors = pool.starmap(load_vector, docs_list)
 
   print("number of vectors =", len(vectors))
@@ -124,16 +123,19 @@ def id_to_time(id, start=0):
   return datetime.strptime(dt, "%Y%m%d_%H%M%S") + timedelta(seconds=start)
 
 
-def get_summary(txt, metadata):
+def get_summary(d):
   msg = f"""
-  ```{txt}```
+  ```{d.page_content}```
 
-  Create the most prominent headline from the text enclosed in three backticks (```) above, describe it in a paragraph, and assign a category to it in the following JSON format:
+  Create the most prominent headline from the text enclosed in three backticks (```) above, describe it in a paragraph, assign a category to it, determine whether it is of international interest, determine whether it is an advertisement, and assign the top three keywords in the following JSON format:
 
   {{
     "title": "<TITLE>",
     "description": "<DESCRIPTION>",
-    "category": "<CATEGORY>"
+    "category": "<CATEGORY>",
+    "international_interest": true|false,
+    "advertisement": true|false,
+    "keywords": ["<KEYWORD1>", "<KEYWORD2>", "<KEYWORD3>"]
   }}
   """
   res = openai.ChatCompletion.create(
@@ -141,7 +143,8 @@ def get_summary(txt, metadata):
     messages=[{"role": "user", "content": msg}]
   )
   result = json.loads(res.choices[0].message.content.strip())
-  result["metadata"] = metadata
+  result = result | d.metadata
+  result["transcript"] = d.page_content.strip()
   return result
 
 
@@ -169,12 +172,12 @@ for ch in CHANNELS:
   print("begin summarizing each document...")
   if DEV_ENV: seldocs = seldocs[:1]
 
-  summary_args = [(d.page_content, d.metadata) for d in seldocs]
-  with ThreadPool(CT) as pool:
+  summary_args = [(d,) for d in seldocs]
+  with ThreadPool(THREAD_COUNT) as pool:
     summaries = pool.starmap(get_summary, summary_args)
 
   print("writing results...")
   json_output = [s for s in summaries]
-  with open(f"{OUTPUT_FOLDER_NAME}/{ch}-{DT[:4]}-{DT[4:6]}-{DT[6:8]}-{LM}-{LG}.json", 'w+') as file:
-    file.write(json.dumps(json_output, indent=2))
+  with open(f"{OUTPUT_FOLDER_NAME}/{ch}-{DT}-{LM}-{LG}.json", 'w+') as f:
+    f.write(json.dumps(json_output, indent=2))
   print(f"finished {ch}")
