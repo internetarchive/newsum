@@ -98,7 +98,7 @@ def load_chunks(inventory, lg, ck):
   return chks
 
 
-def load_vector(i, d):
+def load_vector(d):
   embed = OpenAIEmbeddings()
   result = embed.embed_query(d.page_content)
   return result
@@ -106,7 +106,7 @@ def load_vector(i, d):
 def select_docs(dt, ch, lg, lm, ck, ct):
   print("loading chunks...")
   docs = load_chunks(inventory, lg, ck)
-  docs_list = list(enumerate(docs, start=1))
+  docs_list = [(d,) for d in docs]
 
   print("loading vectors...")
   with ThreadPool(THREAD_COUNT) as pool:
