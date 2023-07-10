@@ -122,10 +122,9 @@ def load_chunks(inventory, lg, ck):
   return chks
 
 
-def load_vector(d):
+def load_vector(docs):
   embed = OpenAIEmbeddings()
-  result = embed.embed_query(d.page_content)
-  return result
+  return embed.embed_query(docs.page_content)
 
 
 @st.cache_resource(show_spinner="Loading Vectors...")
@@ -135,7 +134,6 @@ def select_docs(dt, ch, lg, lm, ck, ct):
 
   with ThreadPool(THREAD_COUNT) as pool:
     vectors = pool.starmap(load_vector, docs_list)
-  st.success('Vectors loaded!')
 
   kmeans = KMeans(n_clusters=ct, random_state=10).fit(vectors)
   cent = sorted([np.argmin(np.linalg.norm(vectors - c, axis=1)) for c in kmeans.cluster_centers_])
@@ -218,7 +216,6 @@ with st.expander("Program Inventory"):
 
 seldocs = select_docs(dt, ch, lg, lm, ck, ct)
 summaries = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
-st.success('Summaries loaded!')
 
 for i, d in enumerate(seldocs):
   try:
