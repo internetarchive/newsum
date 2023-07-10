@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import requests
+from multiprocessing.pool import ThreadPool
 
 import openai
 import srt
@@ -22,14 +23,17 @@ from langchain.llms import OpenAI
 from langchain.schema import Document
 from requests.exceptions import HTTPError
 from sklearn.cluster import KMeans
-from wordcloud import WordCloud
 
 
 TITLE = "NewSum: Daily TV News Summary"
 ICON = "https://archive.org/favicon.ico"
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
-MODEL = "text-embedding-ada-002"
+
+LLM_MODELS = {
+  "Vicuna": "text-embedding-ada-002",
+  "OpenAI": "gpt-4",
+}
 
 IDDTRE = re.compile(r"^.+_(\d{8}_\d{6})")
 
@@ -46,6 +50,8 @@ CHANNELS = {
   "BELARUSTV": "Belarus TV",
   "IRINN": "Islamic Republic of Iran News Network"
 }
+
+THREAD_COUNT = 25
 
 st.set_page_config(page_title=TITLE, page_icon=ICON, layout="centered", initial_sidebar_state="collapsed")
 st.title(TITLE)
@@ -109,23 +115,21 @@ def load_chunks(inventory, lg, ck):
   return chks
 
 
-def load_vectors(docs):
+def load_vector(d):
   embed = OpenAIEmbeddings()
-  msg = f"Loading vectors..."
-  sz = len(docs)
-  prog = st.progress(0.0, text=msg)
-  vectors = []
-  for i, d in enumerate(docs, start=1):
-    vectors.append(embed.embed_query(d.page_content))
-    prog.progress(i/sz, text=msg)
-  prog.empty()
-  return vectors
+  result = embed.embed_query(d.page_content)
+  return result
 
 
-@st.cache_resource(show_spinner=False)
+@st.cache_resource(show_spinner="Loading Vectors...")
 def select_docs(dt, ch, lg, lm, ck, ct):
   docs = load_chunks(inventory, lg, ck)
-  vectors = load_vectors(docs)
+  docs_list = [(d,) for d in docs]
+
+  with ThreadPool(THREAD_COUNT) as pool:
+    vectors = pool.starmap(load_vector, docs_list)
+  st.success('Vectors loaded!')
+
   kmeans = KMeans(n_clusters=ct, random_state=10).fit(vectors)
   cent = sorted([np.argmin(np.linalg.norm(vectors - c, axis=1)) for c in kmeans.cluster_centers_])
   return [docs[i] for i in cent]
@@ -136,8 +140,7 @@ def id_to_time(id, start=0):
   return datetime.strptime(dt, "%Y%m%d_%H%M%S") + timedelta(seconds=start)
 
 
-@st.cache_resource(show_spinner="Summarizing...")
-def get_summary(txt, lm):
+def get_summary(txt, llm):
   msg = f"""
   ```{txt}```
 
@@ -150,11 +153,18 @@ def get_summary(txt, lm):
   }}
   """
   res = openai.ChatCompletion.create(
-    model=MODEL,
+    model=LLM_MODELS[llm],
     messages=[{"role": "user", "content": msg}]
   )
-  return json.loads(res.choices[0].message.content.strip())
+  return res.choices[0].message.content.strip()
 
+
+@st.cache_resource(show_spinner="Summarizing...")
+def gather_summaries(dt, ch, lg, lm, ck, ct, _seldocs):
+  summary_args = [(d,lm) for d in _seldocs]
+  with ThreadPool(THREAD_COUNT) as pool:
+    summaries = pool.starmap(get_summary, summary_args)
+  return summaries
 
 qp = st.experimental_get_query_params()
 if "date" not in st.session_state and qp.get("date"):
@@ -200,10 +210,12 @@ with st.expander("Program Inventory"):
   inventory
 
 seldocs = select_docs(dt, ch, lg, lm, ck, ct)
+summaries = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
+st.success('Summaries loaded!')
 
-for d in seldocs:
+for i, d in enumerate(seldocs):
   try:
-    smr = get_summary(d.page_content, lm)
+    smr = json.loads(summaries[i])
     md = d.metadata
     st.subheader(smr.get("title", "[EMPTY]"))
     cols = st.columns([1, 2])
