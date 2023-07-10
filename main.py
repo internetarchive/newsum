@@ -25,7 +25,14 @@ from sklearn.cluster import KMeans
 from wordcloud import WordCloud
 
 
-TITLE = "NewSum: Daily TV News Summary"
+TITLE = "News Summary"
+DESC = """
+This experimental service presents summaries of the top news stories of archived TV News Channels from around the world.  Audio from those archives are transcribed and translated using Google Cloud services and then stories are identified and summarized using various AI LLMs (we are currently experimenting with several, including Vicuna and GPT-3.5).
+
+This is a work-in-progress and you should expect to see poorly transcribed, translated and/or summarized text and some "hallucinations".
+
+Questions and feedback are requested and appreciated!  How might this service be more useful to you?  Please share your thoughts with info@archive.org.
+"""
 ICON = "https://archive.org/favicon.ico"
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
@@ -49,7 +56,7 @@ CHANNELS = {
 
 st.set_page_config(page_title=TITLE, page_icon=ICON, layout="centered", initial_sidebar_state="collapsed")
 st.title(TITLE)
-
+st.info(DESC)
 
 @st.cache_resource(show_spinner=False)
 def load_srt(id, lg):
