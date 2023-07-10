@@ -29,7 +29,11 @@ TITLE = "NewSum: Daily TV News Summary"
 ICON = "https://archive.org/favicon.ico"
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
-MODEL = "gpt-4"
+
+LLM_MODELS = {
+  "Vicuna": "text-embedding-ada-002",
+  "OpenAI": "gpt-4",
+}
 
 IDDTRE = re.compile(r"^.+_(\d{8}_\d{6})")
 
@@ -117,15 +121,13 @@ def load_vector(d):
   return result
 
 
-@st.cache_resource(show_spinner=False)
+@st.cache_resource(show_spinner="Loading Vectors...")
 def select_docs(dt, ch, lg, lm, ck, ct):
   docs = load_chunks(inventory, lg, ck)
   docs_list = [(d,) for d in docs]
-  vectors = list()
 
-  with st.spinner('Loading Vectors...'):
-    with ThreadPool(THREAD_COUNT) as pool:
-      vectors = pool.starmap(load_vector, docs_list)
+  with ThreadPool(THREAD_COUNT) as pool:
+    vectors = pool.starmap(load_vector, docs_list)
   st.success('Vectors loaded!')
 
   kmeans = KMeans(n_clusters=ct, random_state=10).fit(vectors)
@@ -138,7 +140,7 @@ def id_to_time(id, start=0):
   return datetime.strptime(dt, "%Y%m%d_%H%M%S") + timedelta(seconds=start)
 
 
-def get_summary(txt):
+def get_summary(txt, llm):
   msg = f"""
   ```{txt}```
 
@@ -151,14 +153,15 @@ def get_summary(txt):
   }}
   """
   res = openai.ChatCompletion.create(
-    model=MODEL,
+    model=LLM_MODELS[llm],
     messages=[{"role": "user", "content": msg}]
   )
-  return json.loads(res.choices[0].message.content.strip())
+  return res.choices[0].message.content.strip()
+
 
 @st.cache_resource(show_spinner="Summarizing...")
 def gather_summaries(dt, ch, lg, lm, ck, ct, _seldocs):
-  summary_args = [(d,) for d in _seldocs]
+  summary_args = [(d,lm) for d in _seldocs]
   with ThreadPool(THREAD_COUNT) as pool:
     summaries = pool.starmap(get_summary, summary_args)
   return summaries
@@ -212,7 +215,7 @@ st.success('Summaries loaded!')
 
 for i, d in enumerate(seldocs):
   try:
-    smr = summaries[i]
+    smr = json.loads(summaries[i])
     md = d.metadata
     st.subheader(smr.get("title", "[EMPTY]"))
     cols = st.columns([1, 2])
