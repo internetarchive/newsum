@@ -107,8 +107,8 @@ def chunk_srt(sr, id, lim=3.0):
 
 
 def load_chunks(inventory, lg, ck):
-  msg = "Loading SRT files..."
-  prog = st.progress(0.0, text=msg)
+#  msg = "Loading SRT files..."
+#  prog = st.progress(0.0, text=msg)
   chks = []
   sz = len(inventory)
   for i, r in inventory.iterrows():
@@ -117,8 +117,8 @@ def load_chunks(inventory, lg, ck):
     except HTTPError as _:
       continue
     chks += chunk_srt(sr, r.id, lim=ck)
-    prog.progress((i+1)/sz, text=msg)
-  prog.empty()
+#    prog.progress((i+1)/sz, text=msg)
+#  prog.empty()
   return chks
 
 
