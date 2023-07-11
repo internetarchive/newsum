@@ -122,15 +122,15 @@ def load_chunks(inventory, lg, ck):
   return chks
 
 
-def load_vector(docs):
-  embed = OpenAIEmbeddings()
+def load_vector(docs, llm):
+  embed = OpenAIEmbeddings(model=LLM_MODELS[llm])
   return embed.embed_query(docs.page_content)
 
 
 @st.cache_resource(show_spinner="Loading and processing transcripts (`may take upto 2 minutes`)...")
 def select_docs(dt, ch, lg, lm, ck, ct):
   docs = load_chunks(inventory, lg, ck)
-  docs_list = [(d,) for d in docs]
+  docs_list = [(d, lm) for d in docs]
 
   with ThreadPool(THREAD_COUNT) as pool:
     vectors = pool.starmap(load_vector, docs_list)
