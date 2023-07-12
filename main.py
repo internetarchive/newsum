@@ -39,7 +39,7 @@ VICUNA = "http://fc6000.sf.archive.org:8000/v1"
 
 LLM_MODELS = {
   "Vicuna": "text-embedding-ada-002",
-  "OpenAI": "gpt-4",
+  "OpenAI": "gpt-3.5-turbo",
 }
 
 IDDTRE = re.compile(r"^.+_(\d{8}_\d{6})")
