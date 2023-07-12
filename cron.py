@@ -44,7 +44,7 @@ CT = 20 # cluster count
 DT = (datetime.now() - timedelta(hours=30)).date().strftime("%Y%m%d") # date
 LG = "English" # language
 
-THREAD_COUNT = 25
+THREAD_COUNT = 15
 
 def load_srt(id, lg):
   lang = "" if lg == "Original" else ".en"
