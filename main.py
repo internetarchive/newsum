@@ -5,6 +5,7 @@ import logging
 import re
 import requests
 from multiprocessing.pool import ThreadPool
+import os
 
 import openai
 import srt
@@ -38,8 +39,8 @@ VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visu
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
 
 LLM_MODELS = {
+  "OpenAI": "gpt-3.5-turbo",
   "Vicuna": "text-embedding-ada-002",
-  "OpenAI": "gpt-4",
 }
 
 IDDTRE = re.compile(r"^.+_(\d{8}_\d{6})")
@@ -122,18 +123,18 @@ def load_chunks(inventory, lg, ck):
   return chks
 
 
-def load_vector(docs, llm):
+def load_vectors(doc, llm):
   embed = OpenAIEmbeddings(model=LLM_MODELS[llm])
-  return embed.embed_query(docs.page_content)
+  return embed.embed_query(doc.page_content)
 
 
-@st.cache_resource(show_spinner="Loading and processing transcripts (`may take upto 2 minutes`)...")
+@st.cache_resource(show_spinner="Loading and processing transcripts (`may take up to 2 minutes`)...")
 def select_docs(dt, ch, lg, lm, ck, ct):
   docs = load_chunks(inventory, lg, ck)
   docs_list = [(d, lm) for d in docs]
 
   with ThreadPool(THREAD_COUNT) as pool:
-    vectors = pool.starmap(load_vector, docs_list)
+    vectors = pool.starmap(load_vectors, docs_list)
 
   kmeans = KMeans(n_clusters=ct, random_state=10).fit(vectors)
   cent = sorted([np.argmin(np.linalg.norm(vectors - c, axis=1)) for c in kmeans.cluster_centers_])
@@ -161,7 +162,26 @@ def get_summary(txt, llm):
     model=LLM_MODELS[llm],
     messages=[{"role": "user", "content": msg}]
   )
-  return res.choices[0].message.content.strip()
+  # TODO: add a try statement so JSON loading can safely fail
+  summary_text = res.choices[0].message.content.strip()
+  result = json.loads(summary_text)
+  result = result | txt.metadata
+  result["transcript"] = txt.page_content.strip()
+  return result
+
+def draw_summaries(json_output):
+  for smr in json_output:
+    try:
+      st.subheader(smr.get("title", "[EMPTY]"))
+      cols = st.columns([1, 2])
+      with cols[0]:
+        components.iframe(f'https://archive.org/embed/{smr["id"]}?start={smr["start"]}&end={smr["end"]}')
+      with cols[1]:
+        st.write(smr.get("description", "[EMPTY]"))
+      with st.expander(f'[{id_to_time(smr["id"], smr["start"])}] `{smr.get("category", "[EMPTY]").upper()}`'):
+        st.caption(smr["transcript"])
+    except json.JSONDecodeError as _:
+      pass
 
 
 @st.cache_resource(show_spinner="Summarizing...")
@@ -186,7 +206,7 @@ if "count" not in st.session_state and qp.get("count"):
     st.session_state["count"] = int(qp.get("count")[0])
 
 with st.expander("Configurations"):
-  lm = st.radio("LLM", ["Vicuna", "OpenAI"], key="llm", horizontal=True)
+  lm = st.radio("LLM", ["OpenAI", "Vicuna"], key="llm", horizontal=True)
   ck = st.slider("Chunk size (sec)", value=30, min_value=3, max_value=120, step=3, key="chunk")
   ct = st.slider("Cluster count", value=20, min_value=1, max_value=50, key="count")
 
@@ -214,20 +234,15 @@ except HTTPError as _:
 with st.expander("Program Inventory"):
   inventory
 
-seldocs = select_docs(dt, ch, lg, lm, ck, ct)
-summaries = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
+if f"{ch}-{dt}-{lm}-{lg}.json" in os.listdir("./summaries"):
+    print("FOUND FILE")
+    summaries = open(f"./summaries/{ch}-{dt}-{lm}-{lg}.json", "r")
+    summaries_json = json.loads(summaries.read())
+    draw_summaries(summaries_json)
+else:
 
-for i, d in enumerate(seldocs):
-  try:
-    smr = json.loads(summaries[i])
-    md = d.metadata
-    st.subheader(smr.get("title", "[EMPTY]"))
-    cols = st.columns([1, 2])
-    with cols[0]:
-      components.iframe(f'https://archive.org/embed/{md["id"]}?start={md["start"]}&end={md["end"]}')
-    with cols[1]:
-      st.write(smr.get("description", "[EMPTY]"))
-    with st.expander(f'[{id_to_time(md["id"], md["start"])}] `{smr.get("category", "[EMPTY]").upper()}`'):
-      st.caption(d.page_content)
-  except json.JSONDecodeError as _:
-    pass
+  seldocs = select_docs(dt, ch, lg, lm, ck, ct)
+  summaries_json = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
+  with open(f"summaries/{ch}-{dt}-{lm}-{lg}.json", 'w+') as f:
+    f.write(json.dumps(summaries_json, indent=2))
+  draw_summaries(summaries_json)
