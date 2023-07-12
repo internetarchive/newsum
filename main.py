@@ -123,9 +123,9 @@ def load_chunks(inventory, lg, ck):
   return chks
 
 
-def load_vector(docs, llm):
+def load_vectors(doc, llm):
   embed = OpenAIEmbeddings(model=LLM_MODELS[llm])
-  return embed.embed_query(docs.page_content)
+  return embed.embed_query(doc.page_content)
 
 
 @st.cache_resource(show_spinner="Loading and processing transcripts (`may take upto 2 minutes`)...")
@@ -134,7 +134,7 @@ def select_docs(dt, ch, lg, lm, ck, ct):
   docs_list = [(d, lm) for d in docs]
 
   with ThreadPool(THREAD_COUNT) as pool:
-    vectors = pool.starmap(load_vector, docs_list)
+    vectors = pool.starmap(load_vectors, docs_list)
 
   kmeans = KMeans(n_clusters=ct, random_state=10).fit(vectors)
   cent = sorted([np.argmin(np.linalg.norm(vectors - c, axis=1)) for c in kmeans.cluster_centers_])
