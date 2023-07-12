@@ -91,35 +91,39 @@ def load_vectors(doc, llm):
   return embed.embed_query(doc.page_content)
 
 def select_docs(dt, ch, lg, lm, ck, ct, inventory):
+  print("loading chunks...")
   docs = load_chunks(inventory, lg, ck)
-  docs_list = [(d, lm) for d in docs]
+  docs_list = [(d,lm) for d in docs]
 
+  print("loading vectors...")
   with ThreadPool(THREAD_COUNT) as pool:
     vectors = pool.starmap(load_vectors, docs_list)
 
-  kmeans = KMeans(n_clusters=ct, random_state=10).fit(vectors)
+  print("number of vectors =", len(vectors))
+  kmeans = KMeans(n_clusters=ct, random_state=10, n_init=10).fit(vectors)
   cent = sorted([np.argmin(np.linalg.norm(vectors - c, axis=1)) for c in kmeans.cluster_centers_])
   return [docs[i] for i in cent]
 
-def get_summary(txt, llm):
+def get_summary(d, llm):
   msg = f"""
-  ```{txt}```
+  ```{d}```
 
-  Create the most prominent headline from the text enclosed in three backticks (```) above, describe it in a paragraph, and assign a category to it in the following JSON format:
+  Create the most prominent headline from the text enclosed in three backticks (```) above, describe it in a paragraph, assign a category to it, determine whether it is of international interest, determine whether it is an advertisement, and assign the top three keywords in the following JSON format:
 
   {{
     "title": "<TITLE>",
     "description": "<DESCRIPTION>",
-    "category": "<CATEGORY>"
+    "category": "<CATEGORY>",
+    "international_interest": true|false,
+    "advertisement": true|false,
+    "keywords": ["<KEYWORD1>", "<KEYWORD2>", "<KEYWORD3>"]
   }}
   """
   res = openai.ChatCompletion.create(
     model=LLM_MODELS[llm],
     messages=[{"role": "user", "content": msg}]
   )
-  # TODO: add a try statement so JSON loading can safely fail
-  summary_text = res.choices[0].message.content.strip()
-  result = json.loads(summary_text)
-  result = result | txt.metadata
-  result["transcript"] = txt.page_content.strip()
+  result = json.loads(res.choices[0].message.content.strip())
+  result = result | d.metadata
+  result["transcript"] = d.page_content.strip()
   return result
