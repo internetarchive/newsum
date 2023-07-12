@@ -187,7 +187,7 @@ if "count" not in st.session_state and qp.get("count"):
     st.session_state["count"] = int(qp.get("count")[0])
 
 with st.expander("Configurations"):
-  lm = st.radio("LLM", ["Vicuna", "OpenAI"], key="llm", horizontal=True)
+  lm = st.radio("LLM", ["OpenAI", "Vicuna"], key="llm", horizontal=True)
   ck = st.slider("Chunk size (sec)", value=30, min_value=3, max_value=120, step=3, key="chunk")
   ct = st.slider("Cluster count", value=20, min_value=1, max_value=50, key="count")
 
