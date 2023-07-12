@@ -38,6 +38,7 @@ VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visu
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
 
 LLM_MODELS = {
+  "OpenAI": "gpt-3.5-turbo",
   "Vicuna": "text-embedding-ada-002",
   "OpenAI": "gpt-3.5-turbo",
 }
