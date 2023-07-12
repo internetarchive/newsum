@@ -241,8 +241,6 @@ else:
   with st.expander("Program Inventory"):
     inventory
 
-  # TODO: writeout new JSON files to summaries folder
-
   seldocs = select_docs(dt, ch, lg, lm, ck, ct)
   summaries_json = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
   with open(f"summaries/{ch}-{dt}-{lm}-{lg}.json", 'w+') as f:
