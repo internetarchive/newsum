@@ -22,8 +22,12 @@ from sklearn.cluster import KMeans
 
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
-MODEL = "gpt-3.5-turbo"
 OUTPUT_FOLDER_NAME = "summaries"
+
+LLM_MODELS = {
+  "OpenAI": "gpt-3.5-turbo",
+  "Vicuna": "text-embedding-ada-002",
+}
 
 IDDTRE = re.compile(r"^.+_(\d{8}_\d{6})")
 
@@ -96,19 +100,19 @@ def load_chunks(inventory, lg, ck):
   return chks
 
 
-def load_vector(d):
-  embed = OpenAIEmbeddings()
+def load_vectors(d, llm):
+  embed = OpenAIEmbeddings(model=LLM_MODELS[llm])
   result = embed.embed_query(d.page_content)
   return result
 
 def select_docs(dt, ch, lg, lm, ck, ct):
   print("loading chunks...")
   docs = load_chunks(inventory, lg, ck)
-  docs_list = [(d,) for d in docs]
+  docs_list = [(d,lm) for d in docs]
 
   print("loading vectors...")
   with ThreadPool(THREAD_COUNT) as pool:
-    vectors = pool.starmap(load_vector, docs_list)
+    vectors = pool.starmap(load_vectors, docs_list)
 
   print("number of vectors =", len(vectors))
   kmeans = KMeans(n_clusters=ct, random_state=10, n_init=10).fit(vectors)
@@ -121,7 +125,7 @@ def id_to_time(id, start=0):
   return datetime.strptime(dt, "%Y%m%d_%H%M%S") + timedelta(seconds=start)
 
 
-def get_summary(d):
+def get_summary(d, llm):
   msg = f"""
   ```{d}```
 
@@ -137,7 +141,7 @@ def get_summary(d):
   }}
   """
   res = openai.ChatCompletion.create(
-    model=MODEL,
+    model=LLM_MODELS[llm],
     messages=[{"role": "user", "content": msg}]
   )
   result = json.loads(res.choices[0].message.content.strip())
@@ -169,7 +173,7 @@ for ch in CHANNELS:
 
   print("begin summarizing each document...")
 
-  summary_args = [(d,) for d in seldocs]
+  summary_args = [(d,LM) for d in seldocs]
   with ThreadPool(THREAD_COUNT) as pool:
     summaries = pool.starmap(get_summary, summary_args)
 
