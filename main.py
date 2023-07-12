@@ -5,6 +5,7 @@ import logging
 import re
 import requests
 from multiprocessing.pool import ThreadPool
+import os
 
 import openai
 import srt
@@ -161,7 +162,26 @@ def get_summary(txt, llm):
     model=LLM_MODELS[llm],
     messages=[{"role": "user", "content": msg}]
   )
-  return res.choices[0].message.content.strip()
+  # TODO: add a try statement so JSON loading can safely fail
+  summary_text = res.choices[0].message.content.strip()
+  result = json.loads(summary_text)
+  result = result | txt.metadata
+  result["transcript"] = txt.page_content.strip()
+  return result
+
+def draw_summaries(json_output):
+  for smr in json_output:
+    try:
+      st.subheader(smr.get("title", "[EMPTY]"))
+      cols = st.columns([1, 2])
+      with cols[0]:
+        components.iframe(f'https://archive.org/embed/{smr["id"]}?start={smr["start"]}&end={smr["end"]}')
+      with cols[1]:
+        st.write(smr.get("description", "[EMPTY]"))
+      with st.expander(f'[{id_to_time(smr["id"], smr["start"])}] `{smr.get("category", "[EMPTY]").upper()}`'):
+        st.caption(smr["transcript"])
+    except json.JSONDecodeError as _:
+      pass
 
 
 @st.cache_resource(show_spinner="Summarizing...")
@@ -205,29 +225,26 @@ if lm == "Vicuna":
   openai.api_key = "EMPTY"
   openai.api_base = VICUNA
 
-try:
-  inventory = load_inventory(ch, dt, lg)
-except HTTPError as _:
-  st.warning(f"Inventory for `{CHANNELS.get(ch, 'selected')}` channel is not available for `{dt[:4]}-{dt[4:6]}-{dt[6:8]}` yet, try selecting another date!", icon="⚠️")
-  st.stop()
 
-with st.expander("Program Inventory"):
-  inventory
-
-seldocs = select_docs(dt, ch, lg, lm, ck, ct)
-summaries = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
-
-for i, d in enumerate(seldocs):
+if f"{ch}-{dt}-{lm}-{lg}.json" in os.listdir("./summaries"):
+    print("FOUND FILE")
+    summaries = open(f"./summaries/{ch}-{dt}-{lm}-{lg}.json", "r")
+    summaries_json = json.loads(summaries.read())
+    draw_summaries(summaries_json)
+else:
   try:
-    smr = json.loads(summaries[i])
-    md = d.metadata
-    st.subheader(smr.get("title", "[EMPTY]"))
-    cols = st.columns([1, 2])
-    with cols[0]:
-      components.iframe(f'https://archive.org/embed/{md["id"]}?start={md["start"]}&end={md["end"]}')
-    with cols[1]:
-      st.write(smr.get("description", "[EMPTY]"))
-    with st.expander(f'[{id_to_time(md["id"], md["start"])}] `{smr.get("category", "[EMPTY]").upper()}`'):
-      st.caption(d.page_content)
-  except json.JSONDecodeError as _:
-    pass
+    inventory = load_inventory(ch, dt, lg)
+  except HTTPError as _:
+    st.warning(f"Inventory for `{CHANNELS.get(ch, 'selected')}` channel is not available for `{dt[:4]}-{dt[4:6]}-{dt[6:8]}` yet, try selecting another date!", icon="⚠️")
+    st.stop()
+
+  with st.expander("Program Inventory"):
+    inventory
+
+  # TODO: writeout new JSON files to summaries folder
+
+  seldocs = select_docs(dt, ch, lg, lm, ck, ct)
+  summaries_json = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
+  with open(f"summaries/{ch}-{dt}-{lm}-{lg}.json", 'w+') as f:
+    f.write(json.dumps(summaries_json, indent=2))
+  draw_summaries(summaries_json)
