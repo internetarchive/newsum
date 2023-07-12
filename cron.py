@@ -23,7 +23,7 @@ DEV_ENV = False
 
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
-MODEL = "gpt-4"
+MODEL = "gpt-3.5-turbo"
 OUTPUT_FOLDER_NAME = "summaries"
 
 IDDTRE = re.compile(r"^.+_(\d{8}_\d{6})")
@@ -125,7 +125,7 @@ def id_to_time(id, start=0):
 
 def get_summary(d):
   msg = f"""
-  ```{d.page_content}```
+  ```{d}```
 
   Create the most prominent headline from the text enclosed in three backticks (```) above, describe it in a paragraph, assign a category to it, determine whether it is of international interest, determine whether it is an advertisement, and assign the top three keywords in the following JSON format:
 
@@ -177,7 +177,6 @@ for ch in CHANNELS:
     summaries = pool.starmap(get_summary, summary_args)
 
   print("writing results...")
-  json_output = [s for s in summaries]
   with open(f"{OUTPUT_FOLDER_NAME}/{ch}-{DT}-{LM}-{LG}.json", 'w+') as f:
-    f.write(json.dumps(json_output, indent=2))
+    f.write(json.dumps(summaries, indent=2))
   print(f"finished {ch}")
