@@ -19,7 +19,6 @@ from langchain.schema import Document
 from requests.exceptions import HTTPError
 from sklearn.cluster import KMeans
 
-DEV_ENV = False
 
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
@@ -44,7 +43,7 @@ CT = 20 # cluster count
 DT = (datetime.now() - timedelta(hours=30)).date().strftime("%Y%m%d") # date
 LG = "English" # language
 
-THREAD_COUNT = 15
+THREAD_COUNT = 10
 
 def load_srt(id, lg):
   lang = "" if lg == "Original" else ".en"
@@ -94,7 +93,6 @@ def load_chunks(inventory, lg, ck):
     except HTTPError as _:
       continue
     chks += chunk_srt(sr, r.id, lim=ck)
-    if DEV_ENV: break;
   return chks
 
 
@@ -170,7 +168,6 @@ for ch in CHANNELS:
   seldocs = select_docs(DT, ch, LG, LM, CK, CT)
 
   print("begin summarizing each document...")
-  if DEV_ENV: seldocs = seldocs[:1]
 
   summary_args = [(d,) for d in seldocs]
   with ThreadPool(THREAD_COUNT) as pool:

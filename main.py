@@ -225,6 +225,14 @@ if lm == "Vicuna":
   openai.api_key = "EMPTY"
   openai.api_base = VICUNA
 
+try:
+  inventory = load_inventory(ch, dt, lg)
+except HTTPError as _:
+  st.warning(f"Inventory for `{CHANNELS.get(ch, 'selected')}` channel is not available for `{dt[:4]}-{dt[4:6]}-{dt[6:8]}` yet, try selecting another date!", icon="⚠️")
+  st.stop()
+
+with st.expander("Program Inventory"):
+  inventory
 
 if f"{ch}-{dt}-{lm}-{lg}.json" in os.listdir("./summaries"):
     print("FOUND FILE")
@@ -232,14 +240,6 @@ if f"{ch}-{dt}-{lm}-{lg}.json" in os.listdir("./summaries"):
     summaries_json = json.loads(summaries.read())
     draw_summaries(summaries_json)
 else:
-  try:
-    inventory = load_inventory(ch, dt, lg)
-  except HTTPError as _:
-    st.warning(f"Inventory for `{CHANNELS.get(ch, 'selected')}` channel is not available for `{dt[:4]}-{dt[4:6]}-{dt[6:8]}` yet, try selecting another date!", icon="⚠️")
-    st.stop()
-
-  with st.expander("Program Inventory"):
-    inventory
 
   seldocs = select_docs(dt, ch, lg, lm, ck, ct)
   summaries_json = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
