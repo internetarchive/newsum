@@ -127,7 +127,7 @@ def load_vectors(doc, llm):
   return embed.embed_query(doc.page_content)
 
 
-@st.cache_resource(show_spinner="Loading and processing transcripts (`may take upto 2 minutes`)...")
+@st.cache_resource(show_spinner="Loading and processing transcripts (`may take up to 2 minutes`)...")
 def select_docs(dt, ch, lg, lm, ck, ct):
   docs = load_chunks(inventory, lg, ck)
   docs_list = [(d, lm) for d in docs]
