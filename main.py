@@ -25,7 +25,14 @@ from requests.exceptions import HTTPError
 from sklearn.cluster import KMeans
 
 
-TITLE = "NewSum: Daily TV News Summary"
+TITLE = "News Summary"
+DESC = """
+This experimental service presents summaries of the top news stories of archived TV News Channels from around the world.  Audio from those archives are transcribed and translated using Google Cloud services and then stories are identified and summarized using various AI LLMs (we are currently experimenting with several, including Vicuna and GPT-3.5).
+
+This is a work-in-progress and you should expect to see poorly transcribed, translated and/or summarized text and some "hallucinations".
+
+Questions and feedback are requested and appreciated!  How might this service be more useful to you?  Please share your thoughts with info@archive.org.
+"""
 ICON = "https://archive.org/favicon.ico"
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
@@ -51,11 +58,11 @@ CHANNELS = {
   "IRINN": "Islamic Republic of Iran News Network"
 }
 
-THREAD_COUNT = 25
+THREAD_COUNT = 15
 
 st.set_page_config(page_title=TITLE, page_icon=ICON, layout="centered", initial_sidebar_state="collapsed")
 st.title(TITLE)
-
+st.info(DESC)
 
 @st.cache_resource(show_spinner=False)
 def load_srt(id, lg):
@@ -100,8 +107,8 @@ def chunk_srt(sr, id, lim=3.0):
 
 
 def load_chunks(inventory, lg, ck):
-  msg = "Loading SRT files..."
-  prog = st.progress(0.0, text=msg)
+#  msg = "Loading SRT files..."
+#  prog = st.progress(0.0, text=msg)
   chks = []
   sz = len(inventory)
   for i, r in inventory.iterrows():
@@ -110,25 +117,23 @@ def load_chunks(inventory, lg, ck):
     except HTTPError as _:
       continue
     chks += chunk_srt(sr, r.id, lim=ck)
-    prog.progress((i+1)/sz, text=msg)
-  prog.empty()
+#    prog.progress((i+1)/sz, text=msg)
+#  prog.empty()
   return chks
 
 
-def load_vector(d):
-  embed = OpenAIEmbeddings()
-  result = embed.embed_query(d.page_content)
-  return result
+def load_vector(docs, llm):
+  embed = OpenAIEmbeddings(model=LLM_MODELS[llm])
+  return embed.embed_query(docs.page_content)
 
 
-@st.cache_resource(show_spinner="Loading Vectors...")
+@st.cache_resource(show_spinner="Loading and processing transcripts (`may take upto 2 minutes`)...")
 def select_docs(dt, ch, lg, lm, ck, ct):
   docs = load_chunks(inventory, lg, ck)
-  docs_list = [(d,) for d in docs]
+  docs_list = [(d, lm) for d in docs]
 
   with ThreadPool(THREAD_COUNT) as pool:
     vectors = pool.starmap(load_vector, docs_list)
-  st.success('Vectors loaded!')
 
   kmeans = KMeans(n_clusters=ct, random_state=10).fit(vectors)
   cent = sorted([np.argmin(np.linalg.norm(vectors - c, axis=1)) for c in kmeans.cluster_centers_])
@@ -211,7 +216,6 @@ with st.expander("Program Inventory"):
 
 seldocs = select_docs(dt, ch, lg, lm, ck, ct)
 summaries = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
-st.success('Summaries loaded!')
 
 for i, d in enumerate(seldocs):
   try:
