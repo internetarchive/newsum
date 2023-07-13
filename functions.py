@@ -11,12 +11,8 @@ import time
 import openai
 import srt
 
-import altair as alt
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import streamlit as st
-import streamlit.components.v1 as components
 
 from datetime import datetime, timedelta
 
