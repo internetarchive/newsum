@@ -23,7 +23,7 @@ from requests.exceptions import HTTPError
 from sklearn.cluster import KMeans
 
 
-THREAD_COUNT = 15
+THREAD_COUNT = 10
 OUTPUT_FOLDER_NAME = "summaries"
 VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 LLM_MODELS = {
