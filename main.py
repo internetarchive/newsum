@@ -25,6 +25,8 @@ from langchain.schema import Document
 from requests.exceptions import HTTPError
 from sklearn.cluster import KMeans
 
+from functions import load_inventory, load_srt, select_docs, get_summary
+from functions import THREAD_COUNT, OUTPUT_FOLDER_NAME
 
 TITLE = "News Summary"
 DESC = """
@@ -35,13 +37,7 @@ This is a work-in-progress and you should expect to see poorly transcribed, tran
 Questions and feedback are requested and appreciated!  How might this service be more useful to you?  Please share your thoughts with info@archive.org.
 """
 ICON = "https://archive.org/favicon.ico"
-VISEXP = "https://storage.googleapis.com/data.gdeltproject.org/gdeltv3/iatv/visualexplorer"
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
-
-LLM_MODELS = {
-  "OpenAI": "gpt-3.5-turbo",
-  "Vicuna": "text-embedding-ada-002",
-}
 
 IDDTRE = re.compile(r"^.+_(\d{8}_\d{6})")
 
@@ -59,115 +55,19 @@ CHANNELS = {
   "IRINN": "Islamic Republic of Iran News Network"
 }
 
-THREAD_COUNT = 15
-
 st.set_page_config(page_title=TITLE, page_icon=ICON, layout="centered", initial_sidebar_state="collapsed")
 st.title(TITLE)
 st.info(DESC)
 
-@st.cache_resource(show_spinner=False)
-def load_srt(id, lg):
-  lang = "" if lg == "Original" else ".en"
-  r = requests.get(f"{VISEXP}/{id}.transcript{lang}.srt")
-  r.raise_for_status()
-  return r.content
-
-
-@st.cache_resource(show_spinner=False)
-def load_inventory(ch, dt, lg):
-  r = requests.get(f"{VISEXP}/{ch}.{dt}.inventory.json")
-  r.raise_for_status()
-  return pd.json_normalize(r.json(), record_path="shows").sort_values("start_time", ignore_index=True)
-
-
-def create_doc(txt, id, start, end):
-  return Document(page_content=txt, metadata={"id": id, "start": round(start.total_seconds()), "end": round(end.total_seconds())})
-
-
-def chunk_srt(sr, id, lim=3.0):
-  docs = []
-  ln = 0
-  txt = ""
-  start = end = timedelta()
-  for s in srt.parse(sr.decode()):
-    cl = (s.end - s.start).total_seconds()
-    if ln + cl > lim:
-      if txt:
-        docs.append(create_doc(txt, id, start, end))
-      ln = cl
-      txt = s.content
-      start = s.start
-      end = s.end
-    else:
-      ln += cl
-      txt += " " + s.content
-      end = s.end
-  if txt:
-    docs.append(create_doc(txt, id, start, end))
-  return docs
-
-
-def load_chunks(inventory, lg, ck):
-#  msg = "Loading SRT files..."
-#  prog = st.progress(0.0, text=msg)
-  chks = []
-  sz = len(inventory)
-  for i, r in inventory.iterrows():
-    try:
-      sr = load_srt(r.id, lg)
-    except HTTPError as _:
-      continue
-    chks += chunk_srt(sr, r.id, lim=ck)
-#    prog.progress((i+1)/sz, text=msg)
-#  prog.empty()
-  return chks
-
-
-def load_vectors(doc, llm):
-  embed = OpenAIEmbeddings(model=LLM_MODELS[llm])
-  return embed.embed_query(doc.page_content)
-
-
-@st.cache_resource(show_spinner="Loading and processing transcripts (`may take up to 2 minutes`)...")
-def select_docs(dt, ch, lg, lm, ck, ct):
-  docs = load_chunks(inventory, lg, ck)
-  docs_list = [(d, lm) for d in docs]
-
-  with ThreadPool(THREAD_COUNT) as pool:
-    vectors = pool.starmap(load_vectors, docs_list)
-
-  kmeans = KMeans(n_clusters=ct, random_state=10).fit(vectors)
-  cent = sorted([np.argmin(np.linalg.norm(vectors - c, axis=1)) for c in kmeans.cluster_centers_])
-  return [docs[i] for i in cent]
+load_srt = (st.cache_resource(show_spinner=False))(load_srt)
+load_inventory = (st.cache_resource(show_spinner=False))(load_inventory)
+select_docs = (st.cache_resource(show_spinner="Loading and processing transcripts (`may take up to 2 minutes`)..."))(select_docs)
 
 
 def id_to_time(id, start=0):
   dt = IDDTRE.match(id).groups()[0]
   return datetime.strptime(dt, "%Y%m%d_%H%M%S") + timedelta(seconds=start)
 
-
-def get_summary(txt, llm):
-  msg = f"""
-  ```{txt}```
-
-  Create the most prominent headline from the text enclosed in three backticks (```) above, describe it in a paragraph, and assign a category to it in the following JSON format:
-
-  {{
-    "title": "<TITLE>",
-    "description": "<DESCRIPTION>",
-    "category": "<CATEGORY>"
-  }}
-  """
-  res = openai.ChatCompletion.create(
-    model=LLM_MODELS[llm],
-    messages=[{"role": "user", "content": msg}]
-  )
-  # TODO: add a try statement so JSON loading can safely fail
-  summary_text = res.choices[0].message.content.strip()
-  result = json.loads(summary_text)
-  result = result | txt.metadata
-  result["transcript"] = txt.page_content.strip()
-  return result
 
 def draw_summaries(json_output):
   for smr in json_output:
@@ -234,15 +134,14 @@ except HTTPError as _:
 with st.expander("Program Inventory"):
   inventory
 
-if f"{ch}-{dt}-{lm}-{lg}.json" in os.listdir("./summaries"):
+if f"{dt}-{ch}-{lm}-{lg}.json" in os.listdir(f"./{OUTPUT_FOLDER_NAME}"):
     print("FOUND FILE")
-    summaries = open(f"./summaries/{ch}-{dt}-{lm}-{lg}.json", "r")
+    summaries = open(f"./{OUTPUT_FOLDER_NAME}/{dt}-{ch}-{lm}-{lg}.json", "r")
     summaries_json = json.loads(summaries.read())
     draw_summaries(summaries_json)
 else:
-
-  seldocs = select_docs(dt, ch, lg, lm, ck, ct)
+  seldocs = select_docs(dt, ch, lg, lm, ck, ct, inventory)
   summaries_json = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
-  with open(f"summaries/{ch}-{dt}-{lm}-{lg}.json", 'w+') as f:
+  with open(f"{OUTPUT_FOLDER_NAME}/{dt}-{ch}-{lm}-{lg}.json", 'w+') as f:
     f.write(json.dumps(summaries_json, indent=2))
   draw_summaries(summaries_json)
