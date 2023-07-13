@@ -6,6 +6,7 @@ import re
 import requests
 from multiprocessing.pool import ThreadPool
 import os
+import time
 
 import openai
 import srt
@@ -119,11 +120,18 @@ def get_summary(d, llm):
     "keywords": ["<KEYWORD1>", "<KEYWORD2>", "<KEYWORD3>"]
   }}
   """
-  res = openai.ChatCompletion.create(
-    model=LLM_MODELS[llm],
-    messages=[{"role": "user", "content": msg}]
-  )
-  result = json.loads(res.choices[0].message.content.strip())
-  result = result | d.metadata
-  result["transcript"] = d.page_content.strip()
+  for delay_secs in (2**x for x in range(0,6)):
+    try:
+      res = openai.ChatCompletion.create(
+        model=LLM_MODELS[llm],
+        messages=[{"role": "user", "content": msg}]
+      )
+      result = json.loads(res.choices[0].message.content.strip())
+      result = result | d.metadata
+      result["transcript"] = d.page_content.strip()
+      break
+    except openai.error.OpenAIError as e:
+      print(f"Error: {e}. Retrying in {round(delay_secs, 2)} seconds.")
+      time.sleep(delay_secs)
+      continue
   return result
