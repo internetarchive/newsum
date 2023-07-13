@@ -8,11 +8,10 @@ from datetime import datetime, timedelta
 from requests.exceptions import HTTPError
 
 from functions import load_inventory, select_docs, get_summary
-from functions import THREAD_COUNT
+from functions import THREAD_COUNT, OUTPUT_FOLDER_NAME
 
 
 VICUNA = "http://fc6000.sf.archive.org:8000/v1"
-OUTPUT_FOLDER_NAME = "summaries"
 
 CHANNELS = [
   "ESPRESO",

@@ -26,7 +26,7 @@ from requests.exceptions import HTTPError
 from sklearn.cluster import KMeans
 
 from functions import load_inventory, load_srt, select_docs, get_summary
-from functions import THREAD_COUNT
+from functions import THREAD_COUNT, OUTPUT_FOLDER_NAME
 
 TITLE = "News Summary"
 DESC = """
@@ -134,14 +134,14 @@ except HTTPError as _:
 with st.expander("Program Inventory"):
   inventory
 
-if f"{dt}-{ch}-{lm}-{lg}.json" in os.listdir("./summaries"):
+if f"{dt}-{ch}-{lm}-{lg}.json" in os.listdir(f"./{OUTPUT_FOLDER_NAME}"):
     print("FOUND FILE")
-    summaries = open(f"./summaries/{dt}-{ch}-{lm}-{lg}.json", "r")
+    summaries = open(f"./{OUTPUT_FOLDER_NAME}/{dt}-{ch}-{lm}-{lg}.json", "r")
     summaries_json = json.loads(summaries.read())
     draw_summaries(summaries_json)
 else:
   seldocs = select_docs(dt, ch, lg, lm, ck, ct, inventory)
   summaries_json = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
-  with open(f"summaries/{dt}-{ch}-{lm}-{lg}.json", 'w+') as f:
+  with open(f"{OUTPUT_FOLDER_NAME}/{dt}-{ch}-{lm}-{lg}.json", 'w+') as f:
     f.write(json.dumps(summaries_json, indent=2))
   draw_summaries(summaries_json)
