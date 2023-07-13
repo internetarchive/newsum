@@ -59,6 +59,6 @@ for ch in CHANNELS:
     summaries = pool.starmap(get_summary, summary_args)
 
   print("writing results...")
-  with open(f"{OUTPUT_FOLDER_NAME}/{ch}-{DT}-{LM}-{LG}.json", 'w+') as f:
+  with open(f"{OUTPUT_FOLDER_NAME}/{DT}-{ch}-{LM}-{LG}.json", 'w+') as f:
     f.write(json.dumps(summaries, indent=2))
   print(f"finished {ch}")

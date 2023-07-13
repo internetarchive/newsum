@@ -134,14 +134,14 @@ except HTTPError as _:
 with st.expander("Program Inventory"):
   inventory
 
-if f"{ch}-{dt}-{lm}-{lg}.json" in os.listdir("./summaries"):
+if f"{dt}-{ch}-{lm}-{lg}.json" in os.listdir("./summaries"):
     print("FOUND FILE")
-    summaries = open(f"./summaries/{ch}-{dt}-{lm}-{lg}.json", "r")
+    summaries = open(f"./summaries/{dt}-{ch}-{lm}-{lg}.json", "r")
     summaries_json = json.loads(summaries.read())
     draw_summaries(summaries_json)
 else:
   seldocs = select_docs(dt, ch, lg, lm, ck, ct, inventory)
   summaries_json = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
-  with open(f"summaries/{ch}-{dt}-{lm}-{lg}.json", 'w+') as f:
+  with open(f"summaries/{dt}-{ch}-{lm}-{lg}.json", 'w+') as f:
     f.write(json.dumps(summaries_json, indent=2))
   draw_summaries(summaries_json)
