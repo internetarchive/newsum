@@ -65,6 +65,43 @@ st.set_page_config(page_title=TITLE, page_icon=ICON, layout="centered", initial_
 st.title(TITLE)
 st.info(DESC)
 
+with st.expander("How It Works?"):
+  st.subheader("Archiving TV Stream")
+  st.write("TV Tuners running at the Internet Archive to build the [TV News collection](https://archive.org/tv).")
+
+  st.subheader("Transcription and Translation")
+  st.write("GDELT project uses Google Cloud APIs to generate [subtitles](https://blog.gdeltproject.org/visual-explorer-quick-workflow-for-downloading-belarusian-russian-ukrainian-transcripts-translations/) in the original language as well as English.")
+
+  st.subheader("Chunking")
+  st.image("https://archive.org/~sawood/tmp/NewSum_Chunking.jpg")
+
+  st.subheader("Vectorization")
+  st.image("https://archive.org/~sawood/tmp/NewSum_Vectorization.jpg")
+
+  st.subheader("Clustering and Sampling")
+  st.image("https://archive.org/~sawood/tmp/NewSum_Clustering.jpg")
+
+  st.subheader("Summarization")
+  st.write("JSON summary using the following LLM prompt:")
+  st.code("""
+```{doc}```
+
+Create the most prominent headline from the text enclosed
+in three backticks (```) above, describe it in a paragraph,
+assign a category to it, determine whether it is of international interest,
+determine whether it is an advertisement, and assign the top three keywords
+in the following JSON format:
+
+{
+    "title": "<TITLE>",
+    "description": "<DESCRIPTION>",
+    "category": "<CATEGORY>",
+    "international_interest": true|false,
+    "advertisement": true|false,
+    "keywords": ["<KEYWORD1>", "<KEYWORD2>", "<KEYWORD3>"]
+}
+""", language="json")
+
 @st.cache_resource(show_spinner=False)
 def load_srt(id, lg):
   lang = "" if lg == "Original" else ".en"
@@ -179,7 +216,7 @@ def draw_summaries(json_output):
       with cols[1]:
         st.write(smr.get("description", "[EMPTY]"))
       with st.expander(f'[{id_to_time(smr["id"], smr["start"])}] `{smr.get("category", "[EMPTY]").upper()}`'):
-        st.caption(smr["transcript"])
+        st.write(smr)
     except json.JSONDecodeError as _:
       pass
 
@@ -209,6 +246,8 @@ with st.expander("Configurations"):
   lm = st.radio("LLM", ["OpenAI", "Vicuna"], key="llm", horizontal=True)
   ck = st.slider("Chunk size (sec)", value=30, min_value=3, max_value=120, step=3, key="chunk")
   ct = st.slider("Cluster count", value=20, min_value=1, max_value=50, key="count")
+  ad = st.toggle("Exclude ads")
+  lc = st.toggle("Exclude local news")
 
 cols = st.columns([1, 2, 1])
 dt = cols[0].date_input("Date", value=ENDDT, min_value=BGNDT, max_value=ENDDT, key="date").strftime("%Y%m%d")
@@ -218,6 +257,14 @@ lg = cols[2].selectbox("Language", ["English", "Original"], key="lang")
 if not ch:
   st.info(f"Select a channel to summarize for the selected day.")
   st.stop()
+
+gloc = pd.DataFrame({
+  "channel": ["ESPRESO", "RUSSIA1"],
+  "lat": [50.450001, 55.751244],
+  "lon": [30.523333, 37.618423]
+})
+
+st.map(gloc, size=10000)
 
 st.experimental_set_query_params(**st.session_state)
 
@@ -234,15 +281,24 @@ except HTTPError as _:
 with st.expander("Program Inventory"):
   inventory
 
-if f"{ch}-{dt}-{lm}-{lg}.json" in os.listdir("./summaries"):
-    print("FOUND FILE")
-    summaries = open(f"./summaries/{ch}-{dt}-{lm}-{lg}.json", "r")
-    summaries_json = json.loads(summaries.read())
-    draw_summaries(summaries_json)
-else:
-
+jf = f"{ch}-{dt}-{lm}-{lg}.json"
+if jf not in os.listdir("./summaries"):
   seldocs = select_docs(dt, ch, lg, lm, ck, ct)
   summaries_json = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
-  with open(f"summaries/{ch}-{dt}-{lm}-{lg}.json", 'w+') as f:
+  with open(f"summaries/{jf}", 'w+') as f:
     f.write(json.dumps(summaries_json, indent=2))
-  draw_summaries(summaries_json)
+
+try:
+  summaries_json = json.load(open(f"./summaries/{jf}"))
+  pdj = pd.read_json(f"./summaries/{jf}")[["title", "category", "international_interest", "advertisement", "keywords"]].rename(columns={"title": "Title", "category": "Category", "international_interest": "Intl", "advertisement": "Advt", "keywords": "Keywords"})
+except Exception as e:
+  st.exception(e)
+
+with st.expander("Overview"):
+  cols = st.columns(3)
+  cols[0].metric("Headlines", len(pdj))
+  cols[1].metric("Advertisements", len(pdj[pdj.Advt]))
+  cols[2].metric("International", len(pdj[pdj.Intl]))
+  pdj
+
+draw_summaries(summaries_json)
