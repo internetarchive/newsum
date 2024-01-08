@@ -264,7 +264,7 @@ gloc = pd.DataFrame({
   "lon": [30.523333, 37.618423]
 })
 
-st.map(gloc, size=10000)
+# st.map(gloc, size=10000)
 
 st.experimental_set_query_params(**st.session_state)
 
