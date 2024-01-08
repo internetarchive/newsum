@@ -19,6 +19,8 @@ import streamlit.components.v1 as components
 
 from datetime import datetime, timedelta
 
+from gensim.downloader import load as wvmodel
+from gensim.utils import tokenize
 from langchain.embeddings import OpenAIEmbeddings
 from langchain.llms import OpenAI
 from langchain.schema import Document
@@ -65,6 +67,7 @@ st.set_page_config(page_title=TITLE, page_icon=ICON, layout="centered", initial_
 st.title(TITLE)
 st.info(DESC)
 
+
 with st.expander("How It Works?"):
   st.subheader("Archiving TV Stream")
   st.write("TV Tuners running at the Internet Archive to build the [TV News collection](https://archive.org/tv).")
@@ -101,6 +104,12 @@ in the following JSON format:
     "keywords": ["<KEYWORD1>", "<KEYWORD2>", "<KEYWORD3>"]
 }
 """, language="json")
+
+
+st.cache_resource()
+def load_word2vec_model(name):
+  return wvmodel(name)
+
 
 @st.cache_resource(show_spinner=False)
 def load_srt(id, lg):
@@ -160,15 +169,15 @@ def load_chunks(inventory, lg, ck):
   return chks
 
 
-def load_vectors(doc, llm):
-  embed = OpenAIEmbeddings(model=LLM_MODELS[llm])
-  return embed.embed_query(doc.page_content)
+def load_vectors(doc):
+  tkns = list(tokenize(doc.page_content, lower=True, deacc=True)) or ["EMPTY"]
+  return GSWVMODEL.get_mean_vector(tkns)
 
 
-@st.cache_resource(show_spinner="Loading and processing transcripts (`may take up to 2 minutes`)...")
-def select_docs(dt, ch, lg, lm, ck, ct):
+@st.cache_resource(show_spinner="Loading and processing transcripts...")
+def select_docs(dt, ch, lg, ck, ct):
   docs = load_chunks(inventory, lg, ck)
-  docs_list = [(d, lm) for d in docs]
+  docs_list = [(d,) for d in docs]
 
   with ThreadPool(THREAD_COUNT) as pool:
     vectors = pool.starmap(load_vectors, docs_list)
@@ -183,28 +192,30 @@ def id_to_time(id, start=0):
   return datetime.strptime(dt, "%Y%m%d_%H%M%S") + timedelta(seconds=start)
 
 
-def get_summary(txt, llm):
+def get_summary(d, llm):
   msg = f"""
-  ```{txt}```
+  ```{d.page_content.strip()}```
 
-  Create the most prominent headline from the text enclosed in three backticks (```) above, describe it in a paragraph, and assign a category to it in the following JSON format:
+  Create the most prominent headline from the text enclosed in three backticks (```) above, describe it in a paragraph, assign a category to it, determine whether it is of international interest, determine whether it is an advertisement, and assign the top three keywords in the following JSON format:
 
   {{
     "title": "<TITLE>",
     "description": "<DESCRIPTION>",
-    "category": "<CATEGORY>"
+    "category": "<CATEGORY>",
+    "international_interest": true|false,
+    "advertisement": true|false,
+    "keywords": ["<KEYWORD1>", "<KEYWORD2>", "<KEYWORD3>"]
   }}
   """
   res = openai.ChatCompletion.create(
     model=LLM_MODELS[llm],
     messages=[{"role": "user", "content": msg}]
   )
-  # TODO: add a try statement so JSON loading can safely fail
-  summary_text = res.choices[0].message.content.strip()
-  result = json.loads(summary_text)
-  result = result | txt.metadata
-  result["transcript"] = txt.page_content.strip()
+  result = json.loads(res.choices[0].message.content.strip())
+  result = result | d.metadata
+  result["transcript"] = d.page_content.strip()
   return result
+
 
 def draw_summaries(json_output):
   for smr in json_output:
@@ -283,7 +294,8 @@ with st.expander("Program Inventory"):
 
 jf = f"{ch}-{dt}-{lm}-{lg}.json"
 if jf not in os.listdir("./summaries"):
-  seldocs = select_docs(dt, ch, lg, lm, ck, ct)
+  GSWVMODEL = load_word2vec_model("glove-wiki-gigaword-50")
+  seldocs = select_docs(dt, ch, lg, ck, ct)
   summaries_json = gather_summaries(dt, ch, lg, lm, ck, ct, seldocs)
   with open(f"summaries/{jf}", 'w+') as f:
     f.write(json.dumps(summaries_json, indent=2))
