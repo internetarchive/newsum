@@ -248,21 +248,21 @@ def gather_summaries(dt, ch, lg, lm, ck, ct, _seldocs):
 
 qp = st.experimental_get_query_params()
 if "date" not in st.session_state and qp.get("date"):
-    st.session_state["date"] = datetime.strptime(qp.get("date")[0], "%Y-%m-%d").date()
+  st.session_state["date"] = datetime.strptime(qp.get("date")[0], "%Y-%m-%d").date()
 if "chan" not in st.session_state and qp.get("chan"):
-    st.session_state["chan"] = qp.get("chan")[0]
+  st.session_state["chan"] = qp.get("chan")[0]
 if "lang" not in st.session_state and qp.get("lang"):
-    st.session_state["lang"] = qp.get("lang")[0]
+  st.session_state["lang"] = qp.get("lang")[0]
 if "llm" not in st.session_state and qp.get("llm"):
-    st.session_state["llm"] = qp.get("llm")[0]
+  st.session_state["llm"] = qp.get("llm")[0]
 if "chunk" not in st.session_state and qp.get("chunk"):
-    st.session_state["chunk"] = int(qp.get("chunk")[0])
+  st.session_state["chunk"] = int(qp.get("chunk")[0])
 if "count" not in st.session_state and qp.get("count"):
-    st.session_state["count"] = int(qp.get("count")[0])
+  st.session_state["count"] = int(qp.get("count")[0])
 if "exad" not in st.session_state and qp.get("exad"):
-    st.session_state["exad"] = qp.get("exad")[0][:1].lower() in ("t", "1")
+  st.session_state["exad"] = qp.get("exad")[0][:1].lower() in ("t", "1")
 if "exlc" not in st.session_state and qp.get("exlc"):
-    st.session_state["exlc"] = qp.get("exlc")[0][:1].lower() in ("t", "1")
+  st.session_state["exlc"] = qp.get("exlc")[0][:1].lower() in ("t", "1")
 
 with st.expander("Configurations"):
   lm = st.radio("LLM", ["OpenAI", "Vicuna"], key="llm", horizontal=True, disabled=True)
