@@ -265,7 +265,7 @@ if "exlc" not in st.session_state and qp.get("exlc"):
     st.session_state["exlc"] = qp.get("exlc")[0][:1].lower() in ("t", "1")
 
 with st.expander("Configurations"):
-  lm = st.radio("LLM", ["OpenAI", "Vicuna"], key="llm", horizontal=True)
+  lm = st.radio("LLM", ["OpenAI", "Vicuna"], key="llm", horizontal=True, disabled=True)
   ck = st.slider("Chunk size (sec)", value=30, min_value=3, max_value=120, step=3, key="chunk")
   ct = st.slider("Cluster count", value=20, min_value=1, max_value=50, key="count")
   ad = st.toggle("Exclude ads", key="exad")
@@ -274,7 +274,7 @@ with st.expander("Configurations"):
 cols = st.columns([1, 2, 1])
 dt = cols[0].date_input("Date", value=ENDDT, min_value=BGNDT, max_value=ENDDT, key="date").strftime("%Y%m%d")
 ch = cols[1].selectbox("Channel", CHANNELS, format_func=lambda x: CHANNELS.get(x, ""), key="chan")
-lg = cols[2].selectbox("Language", ["English", "Original"], key="lang")
+lg = cols[2].selectbox("Language", ["English", "Original"], key="lang", disabled=True)
 
 if not ch:
   st.info(f"Select a channel to summarize for the selected day.")
