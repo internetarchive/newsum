@@ -207,14 +207,20 @@ def get_summary(d, llm):
     "keywords": ["<KEYWORD1>", "<KEYWORD2>", "<KEYWORD3>"]
   }}
   """
-  res = openai.ChatCompletion.create(
-    model=LLM_MODELS[llm],
-    messages=[{"role": "user", "content": msg}]
-  )
-  result = json.loads(res.choices[0].message.content.strip())
-  result = result | d.metadata
-  result["transcript"] = d.page_content.strip()
-  return result
+  retries = 5
+  while retries:
+    try:
+      res = openai.ChatCompletion.create(
+        model=LLM_MODELS[llm],
+        messages=[{"role": "user", "content": msg}]
+      )
+      result = json.loads(res.choices[0].message.content.strip())
+      result = result | d.metadata
+      result["transcript"] = d.page_content.strip()
+      return result
+    except json.JSONDecodeError as _:
+      retries -= 1
+  return None
 
 
 def draw_summaries(json_output):
@@ -237,7 +243,8 @@ def gather_summaries(dt, ch, lg, lm, ck, ct, _seldocs):
   summary_args = [(d,lm) for d in _seldocs]
   with ThreadPool(THREAD_COUNT) as pool:
     summaries = pool.starmap(get_summary, summary_args)
-  return summaries
+  return list(filter(None, summaries))
+
 
 qp = st.experimental_get_query_params()
 if "date" not in st.session_state and qp.get("date"):
