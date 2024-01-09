@@ -264,8 +264,9 @@ if "exad" not in st.session_state and qp.get("exad"):
 if "exlc" not in st.session_state and qp.get("exlc"):
   st.session_state["exlc"] = qp.get("exlc")[0][:1].lower() in ("t", "1")
 
-with st.expander("Configurations"):
-  lm = st.radio("LLM", ["OpenAI", "Vicuna"], key="llm", horizontal=True, disabled=True)
+with st.sidebar:
+  st.title("Configurations")
+  lm = st.radio("LLM", ["OpenAI", "Vicuna"], key="llm", disabled=True)
   ck = st.slider("Chunk size (sec)", value=30, min_value=3, max_value=120, step=3, key="chunk")
   ct = st.slider("Cluster count", value=20, min_value=1, max_value=50, key="count")
   ad = st.toggle("Exclude ads", key="exad")
