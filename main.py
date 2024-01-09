@@ -259,13 +259,17 @@ if "chunk" not in st.session_state and qp.get("chunk"):
     st.session_state["chunk"] = int(qp.get("chunk")[0])
 if "count" not in st.session_state and qp.get("count"):
     st.session_state["count"] = int(qp.get("count")[0])
+if "exad" not in st.session_state and qp.get("exad"):
+    st.session_state["exad"] = qp.get("exad")[0][:1].lower() in ("t", "1")
+if "exlc" not in st.session_state and qp.get("exlc"):
+    st.session_state["exlc"] = qp.get("exlc")[0][:1].lower() in ("t", "1")
 
 with st.expander("Configurations"):
   lm = st.radio("LLM", ["OpenAI", "Vicuna"], key="llm", horizontal=True)
   ck = st.slider("Chunk size (sec)", value=30, min_value=3, max_value=120, step=3, key="chunk")
   ct = st.slider("Cluster count", value=20, min_value=1, max_value=50, key="count")
-  ad = st.toggle("Exclude ads")
-  lc = st.toggle("Exclude local news")
+  ad = st.toggle("Exclude ads", key="exad")
+  lc = st.toggle("Exclude local news", key="exlc")
 
 cols = st.columns([1, 2, 1])
 dt = cols[0].date_input("Date", value=ENDDT, min_value=BGNDT, max_value=ENDDT, key="date").strftime("%Y%m%d")
