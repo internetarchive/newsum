@@ -324,4 +324,9 @@ with st.expander("Overview"):
   cols[2].metric("International", len(pdj[pdj.Intl]))
   pdj
 
+if ad:
+  summaries_json = [s for s in summaries_json if not s.get("advertisement")]
+if lc:
+  summaries_json = [s for s in summaries_json if s.get("international_interest")]
+
 draw_summaries(summaries_json)
