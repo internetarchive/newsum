@@ -106,7 +106,7 @@ in the following JSON format:
 """, language="json")
 
 
-st.cache_resource()
+@st.cache_resource()
 def load_word2vec_model(name):
   return wvmodel(name)
 
