@@ -7,6 +7,7 @@ WORKDIR     /app
 CMD         ["streamlit", "run", "main.py"]
 
 RUN         pip install \
+              gensim \
               langchain \
               llama-index \
               openai \
