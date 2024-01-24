@@ -2,18 +2,17 @@
 
 FROM        python:3
 
-ENV         STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+ENV         STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
+            STREAMLIT_SERVER_ENABLE_STATIC_SERVING=true
+
 WORKDIR     /app
-CMD         ["streamlit", "run", "main.py"]
 
 RUN         pip install \
-              gensim \
-              langchain \
-              llama-index \
-              openai \
-              scikit-learn \
-              srt \
               streamlit \
               wordcloud
+COPY        requirements.txt ./
+RUN         pip install -r requirements.txt
 
 COPY        . ./
+
+CMD         ["streamlit", "run", "main.py"]

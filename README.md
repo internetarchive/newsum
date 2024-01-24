@@ -1,6 +1,6 @@
 # Daily TV News Summary
 
-This is application summarizes daily news from IA's TV News Archive using GPT.
+This application summarizes daily news from TV News Archive of the Internet Archive using GPT.
 
 To run it locally (in Docker), clone this repository and build a docker image:
 

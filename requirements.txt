@@ -1,0 +1,7 @@
+gensim
+langchain
+numpy
+openai
+requests
+scikit-learn
+srt
