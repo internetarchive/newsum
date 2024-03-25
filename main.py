@@ -42,7 +42,7 @@ CHANNELS = {
 }
 
 
-st.set_page_config(page_title=TITLE, page_icon=ICON, layout="centered", initial_sidebar_state="auto")
+st.set_page_config(page_title=TITLE, page_icon=ICON, layout="centered", initial_sidebar_state="collapsed")
 st.title(TITLE)
 st.info(DESC)
 
