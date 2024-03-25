@@ -130,15 +130,15 @@ if "exlc" not in ss and qp.get("exlc"):
 with st.sidebar:
   st.title("Configurations")
   lm = st.radio("LLM", ["OpenAI", "Vicuna"], key="llm", disabled=True)
+  lg = st.radio("Language", ["English", "Original"], key="lang", disabled=True)
   ck = st.slider("Chunk size (sec)", min_value=3, max_value=120, step=3, key="chunk")
   ct = st.slider("Cluster count", min_value=1, max_value=50, key="count")
   ad = st.toggle("Exclude ads", key="exad")
   lc = st.toggle("Exclude local news", key="exlc")
 
-cols = st.columns([1, 2, 1])
+cols = st.columns([1, 3])
 dt = cols[0].date_input("Date", value=ENDDT, min_value=BGNDT, max_value=ENDDT, key="date").strftime("%Y%m%d")
 ch = cols[1].selectbox("Channel", CHANNELS, format_func=lambda x: CHANNELS.get(x, ""), key="chan")
-lg = cols[2].selectbox("Language", ["English", "Original"], key="lang", disabled=True)
 
 if not ch:
   st.info(f"Select a channel to summarize for the selected day.")
