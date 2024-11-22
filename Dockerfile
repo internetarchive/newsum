@@ -1,6 +1,6 @@
 #!/usr/bin/env -S docker image build -t newsum . -f
 
-FROM        python:3
+FROM        python:3.12
 
 ENV         STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
             STREAMLIT_SERVER_ENABLE_STATIC_SERVING=true
