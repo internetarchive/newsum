@@ -5,6 +5,8 @@ FROM        python:3
 ENV         STREAMLIT_BROWSER_GATHER_USAGE_STATS=false \
             STREAMLIT_SERVER_ENABLE_STATIC_SERVING=true
 
+RUN         adduser --disabled-password --gecos "" appuser
+
 WORKDIR     /app
 
 RUN         pip install \
@@ -13,6 +15,8 @@ RUN         pip install \
 COPY        requirements.txt ./
 RUN         pip install -r requirements.txt
 
-COPY        . ./
+COPY        --chown=appuser:appuser . ./
+
+USER        appuser
 
 CMD         ["streamlit", "run", "main.py"]

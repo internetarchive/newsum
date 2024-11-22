@@ -1,0 +1,16 @@
+variables:
+  NOMAD_VAR_HOSTNAMES: '["newsum.crawl1.archive.org"]'
+  NOMAD_VAR_PORTS: '{ 8501 = "http"}'
+  NOMAD_VAR_METRICS: 'false'
+  NOMAD_VAR_CHECK_PROTOCOL: 'http'
+  NOMAD_VAR_CHECK_PATH: '/'
+  NOMAD_VAR_FORCE_PULL: 'true'
+  NOMAD_VAR_CPU: 1000
+  NOMAD_VAR_MEMORY: 4096
+  NOMAD_VAR_COUNT: 1
+
+
+include:
+  - project: 'wb/crawl-nomad/pipeline-toolbox'
+    ref: master
+    file: 'nomad-build-and-deploy.yml'
