@@ -52,6 +52,15 @@ def load_srt(id, lg):
 
 
 def load_inventory(ch, dt):
+  if dt > "20241001":
+    r = requests.get(f"{VISEXP}/{dt}.metainventory.json")
+    r.raise_for_status()
+    inv = []
+    for l in r.iter_lines():
+      id = json.loads(l)["id"]
+      if id.startswith(f"{ch}_"):
+        inv.append({"id": id})
+    return inv
   r = requests.get(f"{VISEXP}/{ch}.{dt}.inventory.json")
   r.raise_for_status()
   return r.json()["shows"]
