@@ -87,6 +87,9 @@ in the following JSON format:
 
 @st.cache_resource(show_spinner="Loading program inventory...")
 def load_inventory_df(ch, dt):
+  if dt > "20241001":
+    d = pd.read_json(f"{VISEXP}/{dt}.metainventory.json", lines=True)
+    return d[d["id"].str.startswith(ch)]
   r = requests.get(f"{VISEXP}/{ch}.{dt}.inventory.json")
   r.raise_for_status()
   return pd.json_normalize(r.json(), record_path="shows").sort_values("start_time", ignore_index=True)
