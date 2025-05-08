@@ -37,6 +37,7 @@ CHANNELS = {
   "RUSSIA24": "Russia-24",
   "1TV": "Channel One Russia",
   "NTV": "NTV",
+  "CURRENTTIME": "Current Time TV",
   "BELARUSTV": "Belarus TV",
   "IRINN": "Islamic Republic of Iran News Network"
 }

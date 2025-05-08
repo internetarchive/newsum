@@ -19,6 +19,7 @@ CHANNELS = [
   "RUSSIA24",
   "1TV",
   "NTV",
+  "CURRENTTIME",
   "BELARUSTV",
   "IRINN"
 ]
